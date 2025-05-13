@@ -4,8 +4,8 @@ import { parse } from '@conform-to/zod'
 import { cssBundleHref } from '@remix-run/css-bundle'
 import {
 	json,
-	type LoaderFunctionArgs,
 	type ActionFunctionArgs,
+	type LoaderFunctionArgs,
 	type LinksFunction,
 } from '@remix-run/node'
 import {
@@ -16,6 +16,7 @@ import {
 	Outlet,
 	Scripts,
 	ScrollRestoration,
+	useFetcher,
 	useLoaderData,
 	useMatches,
 	type MetaFunction,
@@ -183,18 +184,18 @@ export default function AppWithProviders() {
 }
 
 function ThemeSwitch({ userPreference }: { userPreference?: Theme }) {
-	// 🐨 create a fetcher. 💰 The generic will be <typeof action>
+	const fetcher = useFetcher<typeof action>()
 
 	const [form] = useForm({
 		id: 'theme-switch',
-		// 🐨 set the lastSubmission to fetcher.data?.submission
+		lastSubmission: fetcher.data?.submission,
 		onValidate({ formData }) {
 			return parse(formData, { schema: ThemeFormSchema })
 		},
 	})
 
 	const mode = userPreference ?? 'light'
-	// 🐨 set the nextMode to the opposite of the current mode
+	const nextMode = mode === 'light' ? 'dark' : 'light'
 	const modeLabel = {
 		light: (
 			<Icon name="sun">
@@ -209,12 +210,12 @@ function ThemeSwitch({ userPreference }: { userPreference?: Theme }) {
 	}
 
 	return (
-		// 🐨 change this to a fetcher.Form and set the method as POST
-		<form {...form.props}>
-			{/* 🐨 add a hidden input for the theme and set its value to nextMode */}
+		<fetcher.Form method="POST" {...form.props}>
+			<input type="hidden" name="theme" value={nextMode} />
 			<div className="flex gap-2">
 				<button
-					// 🐨 set the name to "intent" and the value to "update-theme"
+					name="intent"
+					value="update-theme"
 					type="submit"
 					className="flex h-8 w-8 cursor-pointer items-center justify-center"
 				>
@@ -222,7 +223,7 @@ function ThemeSwitch({ userPreference }: { userPreference?: Theme }) {
 				</button>
 			</div>
 			<ErrorList errors={form.errors} id={form.errorId} />
-		</form>
+		</fetcher.Form>
 	)
 }
 
