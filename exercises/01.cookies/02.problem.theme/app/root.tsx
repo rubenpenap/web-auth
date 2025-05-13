@@ -38,7 +38,7 @@ import { csrf } from './utils/csrf.server.ts'
 import { getEnv } from './utils/env.server.ts'
 import { honeypot } from './utils/honeypot.server.ts'
 import { invariantResponse } from './utils/misc.tsx'
-import { type Theme } from './utils/theme.server.ts'
+import { getTheme, setTheme, type Theme } from './utils/theme.server.ts'
 
 export const links: LinksFunction = () => {
 	return [
@@ -55,7 +55,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 	return json(
 		{
 			username: os.userInfo().username,
-			// 🐨 get the theme from the request's cookie header using the getTheme utility:
+			theme: getTheme(request),
 			ENV: getEnv(),
 			csrfToken,
 			honeyProps,
@@ -86,14 +86,11 @@ export async function action({ request }: ActionFunctionArgs) {
 	if (!submission.value) {
 		return json({ status: 'error', submission } as const, { status: 400 })
 	}
-	// 🐨 get the theme from the submission.value
-	// 🐨 get the value of the cookie header by calling setTheme with the theme
+
+	const { theme } = submission.value
 
 	const responseInit = {
-		headers: {
-			// 🐨 add a 'set-cookie' header to this response and set it to the
-			// serialized cookie:
-		},
+		headers: { 'set-cookie': setTheme(theme) },
 	}
 	return json({ success: true, submission }, responseInit)
 }
@@ -102,11 +99,11 @@ function Document({
 	children,
 	theme,
 	env,
-}: {
+}: Readonly<{
 	children: React.ReactNode
 	theme?: Theme
 	env?: Record<string, string>
-}) {
+}>) {
 	return (
 		<html lang="en" className={`${theme} h-full overflow-x-hidden`}>
 			<head>
@@ -133,7 +130,7 @@ function Document({
 
 function App() {
 	const data = useLoaderData<typeof loader>()
-	const theme = 'light' // 🐨 change this to the value you get from the loader
+	const theme = data.theme
 	const matches = useMatches()
 	const isOnSearchPage = matches.find(m => m.id === 'routes/users+/index')
 	return (
