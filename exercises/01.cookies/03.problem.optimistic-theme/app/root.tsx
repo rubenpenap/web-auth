@@ -17,6 +17,7 @@ import {
 	Scripts,
 	ScrollRestoration,
 	useFetcher,
+	useFetchers,
 	useLoaderData,
 	useMatches,
 	type MetaFunction,
@@ -129,8 +130,7 @@ function Document({
 
 function App() {
 	const data = useLoaderData<typeof loader>()
-	// 🐨 switch this from data.theme to `useTheme()`
-	const theme = data.theme
+	const theme = useTheme()
 	const matches = useMatches()
 	const isOnSearchPage = matches.find(m => m.id === 'routes/users+/index')
 	return (
@@ -184,14 +184,18 @@ export default function AppWithProviders() {
 	)
 }
 
-// 🐨 create a useTheme hook here that reads the current theme from useLoaderData
-// and returns it unless there's an ongoing fetcher setting the theme.
-// 🦉 The ThemeSwitch is using useFetcher to make the switch. You can find the
-// fetcher in your useTheme hook using the useFetchers hook which returns an
-// array of all active fetchers on the page.
-// 💰 Add a `.find` on the fetchers array to find the fetcher which has formData
-// with an intent of 'update-theme'. If that fetcher is found, then return the
-// 'theme' from the fetcher's formData.
+function useTheme() {
+	const data = useLoaderData<typeof loader>()
+	const fetchers = useFetchers()
+	const themeFetcher = fetchers.find(
+		fetcher => fetcher.formData?.get('intent') === 'update-theme',
+	)
+	const optimisticTheme = themeFetcher?.formData?.get('theme')
+	if (optimisticTheme === 'light' || optimisticTheme === 'dark') {
+		return optimisticTheme
+	}
+	return data.theme
+}
 
 function ThemeSwitch({ userPreference }: { userPreference?: Theme }) {
 	const fetcher = useFetcher<typeof action>()
