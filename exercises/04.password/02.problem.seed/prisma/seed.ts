@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { faker } from '@faker-js/faker'
 import { PrismaClient } from '@prisma/client'
 import { promiseHash } from 'remix-utils/promise'
-import { createUser } from '#tests/db-utils.ts'
+import { createPassword, createUser } from '#tests/db-utils.ts'
 
 const prisma = new PrismaClient()
 
@@ -57,7 +57,7 @@ async function seed() {
 		}),
 		img({
 			altText:
-				'an office full of laptops and other office equipment that look like it was abandond in a rush out of the building in an emergency years ago.',
+				'an office full of laptops and other office equipment that look like it was abandoned in a rush out of the building in an emergency years ago.',
 			filepath: './tests/fixtures/images/notes/6.png',
 		}),
 		img({
@@ -87,9 +87,7 @@ async function seed() {
 				select: { id: true },
 				data: {
 					...userData,
-					// 🐨 add a password here
-					// 💰 to make it easy to login as users, you can set the password to
-					// the username. Obviously this isn't secure, but this is test data 🤷‍♂️
+					password: { create: createPassword(userData.username) },
 					image: { create: userImages[index % 10] },
 					notes: {
 						create: Array.from({
@@ -159,7 +157,7 @@ async function seed() {
 			username: 'kody',
 			name: 'Kody',
 			image: { create: kodyImages.kodyUser },
-			// 🐨 add a password "kodylovesyou" here
+			password: { create: createPassword('kodylovesyou') },
 			notes: {
 				create: [
 					{
