@@ -13,7 +13,7 @@ import { z } from 'zod'
 import { CheckboxField, ErrorList, Field } from '#app/components/forms.tsx'
 import { Spacer } from '#app/components/spacer.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
-// 🐨 import bcrypt from your new #app/utils/auth.server.ts file here
+import { bcrypt } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
@@ -67,8 +67,7 @@ export async function action({ request }: ActionFunctionArgs) {
 				return
 			}
 		}).transform(async data => {
-			// 🐨 retrieve the password they entered from data here as well
-			const { username, email, name } = data
+			const { username, email, name, password } = data
 
 			const user = await prisma.user.create({
 				select: { id: true },
@@ -76,7 +75,11 @@ export async function action({ request }: ActionFunctionArgs) {
 					email: email.toLowerCase(),
 					username: username.toLowerCase(),
 					name,
-					// 🐨 create a password here using bcrypt.hash (the async version)
+					password: {
+						create: {
+							hash: await bcrypt.hash(password, 10),
+						},
+					},
 				},
 			})
 
