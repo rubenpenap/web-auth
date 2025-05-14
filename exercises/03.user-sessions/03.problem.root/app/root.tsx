@@ -38,6 +38,7 @@ import { EpicShop } from './epicshop.tsx'
 import fontStylestylesheetUrl from './styles/font.css'
 import tailwindStylesheetUrl from './styles/tailwind.css'
 import { csrf } from './utils/csrf.server.ts'
+import { prisma } from './utils/db.server.ts'
 import { getEnv } from './utils/env.server.ts'
 import { honeypot } from './utils/honeypot.server.ts'
 import {
@@ -45,6 +46,7 @@ import {
 	getUserImgSrc,
 	invariantResponse,
 } from './utils/misc.tsx'
+import { sessionStorage } from './utils/session.server.ts'
 import { getTheme, setTheme, type Theme } from './utils/theme.server.ts'
 import { getToast, type Toast } from './utils/toast.server.ts'
 
@@ -61,16 +63,25 @@ export async function loader({ request }: LoaderFunctionArgs) {
 	const [csrfToken, csrfCookieHeader] = await csrf.commitToken(request)
 	const honeyProps = honeypot.getInputProps()
 	const { toast, headers: toastHeaders } = await getToast(request)
-	// 🐨 get the cookie session from the request
-	// 🐨 get the userId from the cookie session
-	// 🐨 if there's a userId, then get the user from the database
-	// 💰 you will want to specify a select. You'll need the id, username, name,
-	// and image's id
+	const cookieSession = await sessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+	const userId = cookieSession.get('userId')
+	const user = userId
+		? await prisma.user.findUnique({
+				select: {
+					id: true,
+					name: true,
+					username: true,
+					image: { select: { id: true } },
+				},
+				where: { id: userId },
+			})
+		: null
 	return json(
 		{
 			username: os.userInfo().username,
-			// 🐨 add the user here (if there was no userId then the user can be null)
-			// 💰 don't forget to update the component below to access the user from the data.
+			user,
 			theme: getTheme(request),
 			toast,
 			ENV: getEnv(),
@@ -151,7 +162,7 @@ function Document({
 function App() {
 	const data = useLoaderData<typeof loader>()
 	const theme = useTheme()
-	const user = null as any // 🐨 change "null as any" to data.user
+	const user = data.user
 	const matches = useMatches()
 	const isOnSearchPage = matches.find(m => m.id === 'routes/users+/index')
 	return (
