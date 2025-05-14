@@ -92,7 +92,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 		request.headers.get('cookie'),
 	)
 	// 🐨 change this to "flash"
-	toastCookieSession.set('toast', {
+	toastCookieSession.flash('toast', {
 		type: 'success',
 		title: 'Note deleted',
 		description: 'Your note has been deleted',
