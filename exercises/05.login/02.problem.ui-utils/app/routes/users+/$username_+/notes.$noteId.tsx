@@ -29,6 +29,7 @@ import {
 	useIsPending,
 } from '#app/utils/misc.tsx'
 import { redirectWithToast } from '#app/utils/toast.server.ts'
+import { useOptionalUser } from '#app/utils/user.ts'
 import { type loader as notesLoader } from './notes.tsx'
 
 export async function loader({ params }: LoaderFunctionArgs) {
@@ -97,10 +98,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 export default function NoteRoute() {
 	const data = useLoaderData<typeof loader>()
-	// 🐨 get the logged in user via useOptionalUser, then determine whether the
-	// logged in user is the owner by comparing the owner's id to the logged in
-	// user's id.
-	const isOwner = true
+	const user = useOptionalUser()
+	const isOwner = user?.id === data.note.ownerId
 
 	return (
 		<div className="absolute inset-0 flex flex-col px-10">
