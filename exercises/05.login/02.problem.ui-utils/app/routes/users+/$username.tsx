@@ -6,11 +6,12 @@ import { Button } from '#app/components/ui/button.tsx'
 import { Icon } from '#app/components/ui/icon.tsx'
 import { prisma } from '#app/utils/db.server.ts'
 import { getUserImgSrc, invariantResponse } from '#app/utils/misc.tsx'
+import { useOptionalUser } from '#app/utils/user.ts'
 
 export async function loader({ params }: LoaderFunctionArgs) {
 	const user = await prisma.user.findFirst({
 		select: {
-			// 🐨 add the id to the select here:
+			id: true,
 			name: true,
 			username: true,
 			createdAt: true,
@@ -30,10 +31,8 @@ export default function ProfileRoute() {
 	const data = useLoaderData<typeof loader>()
 	const user = data.user
 	const userDisplayName = user.name ?? user.username
-	// 🐨 get the logged in user and compare the user.id and the logged in user's
-	// id to determine whether this is the logged in user's profile or not.
-	// 💰 you'll want useOptionalUser for this one.
-	const isLoggedInUser = false
+	const loggedInUser = useOptionalUser()
+	const isLoggedInUser = loggedInUser?.id === user.id
 
 	return (
 		<div className="container mb-48 mt-36 flex flex-col items-center justify-center">
