@@ -2,5 +2,7 @@ import bcrypt from 'bcryptjs'
 
 export { bcrypt }
 
-// 🐨 create a SESSION_EXPIRATION_TIME variable here
-// 🐨 export a simple function that returns a new date that's the current time plus the SESSION_EXPIRATION_TIME
+const SESSION_EXPIRATION_TIME = 30 * 24 * 60 * 60 * 1000 // 30 days
+export function getSessionExpirationDate() {
+	return new Date(Date.now() + SESSION_EXPIRATION_TIME)
+}
