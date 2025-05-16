@@ -7,6 +7,7 @@ import {
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 	type LinksFunction,
+	redirect,
 } from '@remix-run/node'
 import {
 	Link,
@@ -79,8 +80,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
 				where: { id: userId },
 			})
 		: null
-	// 🐨 if there's a userId but no user then something's wrong.
-	// Let's delete destroy the session and redirect to the home page.
+	if (userId && !user) {
+		throw redirect('/', {
+			headers: {
+				'set-cookie': await sessionStorage.destroySession(cookieSession),
+			},
+		})
+	}
 	return json(
 		{
 			username: os.userInfo().username,
