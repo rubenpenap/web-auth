@@ -1,4 +1,5 @@
 import { redirect } from '@remix-run/node'
+import { sessionStorage } from '#app/utils/session.server.ts'
 
 export async function loader() {
 	// 🦉 we'll keep this around in case the user ends up on this route. They
@@ -8,7 +9,10 @@ export async function loader() {
 }
 
 export async function action() {
-	// 🐨 get the user's session from the request that's passed to the action
-	// 🐨 destroy the session and set the 'set-cookie' header
-	return redirect('/')
+	const cookieSession = await sessionStorage.getSession()
+	return redirect('/', {
+		headers: {
+			'set-cookie': await sessionStorage.destroySession(cookieSession),
+		},
+	})
 }
