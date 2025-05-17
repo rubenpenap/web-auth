@@ -43,11 +43,17 @@ export async function requireAnonymous(request: Request) {
 	}
 }
 
-// 🐨 create a requireUser utility here which should get the userId
-// 🐨 query for the user's id and username.
-// 🐨 If the user doesn't exist, log the user out with the logout utility.
-//   🦺 TypeScript is happiest when you do: "throw await logout({ request })"
-// 🐨 If the user does exist, then return the user.
+export async function requireUser(request: Request) {
+	const userId = await requireUserId(request)
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: { id: true, username: true },
+	})
+	if (!user) {
+		throw await logout({ request })
+	}
+	return user
+}
 
 export async function login({
 	username,
