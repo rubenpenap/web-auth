@@ -10,25 +10,21 @@ const SESSION_EXPIRATION_TIME = 1000 * 60 * 60 * 24 * 30
 export const getSessionExpirationDate = () =>
 	new Date(Date.now() + SESSION_EXPIRATION_TIME)
 
-// 🐨 this variable should be sessionKey instead of userIdKey
-// make sure that gets updated everywhere.
-export const userIdKey = 'sessionId'
+export const sessionKey = 'sessionId'
 
 export async function getUserId(request: Request) {
 	const cookieSession = await sessionStorage.getSession(
 		request.headers.get('cookie'),
 	)
-	// 🐨 this should be sessionKey instead of userIdKey
-	const sessionId = cookieSession.get(userIdKey)
+
+	const sessionId = cookieSession.get(sessionKey)
 	if (!sessionId) return null
 	const session = await prisma.session.findUnique({
 		select: { user: { select: { id: true } } },
 		where: { id: sessionId, expirationDate: { gt: new Date() } },
 	})
 	if (!session?.user) {
-		// Perhaps user was deleted?
-		// 🐨 this should be sessionKey instead of userIdKey
-		cookieSession.unset(userIdKey)
+		cookieSession.unset(sessionKey)
 		throw redirect('/', {
 			headers: {
 				'set-cookie': await sessionStorage.commitSession(cookieSession),
@@ -145,13 +141,10 @@ export async function logout(
 	const cookieSession = await sessionStorage.getSession(
 		request.headers.get('cookie'),
 	)
-	// 🐨 this should be sessionKey instead of userIdKey
-	const sessionId = cookieSession.get(userIdKey)
-	// delete the session if it exists, but don't wait for it, go ahead an log the user out
+	const sessionId = cookieSession.get(sessionKey)
 	if (sessionId) {
 		void prisma.session.deleteMany({ where: { id: sessionId } }).catch(() => {})
 	}
-	// 🐨 this should be sessionKey instead of userIdKey
 	throw redirect(
 		safeRedirect(redirectTo),
 		combineResponseInits(responseInit, {
