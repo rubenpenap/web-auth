@@ -1,10 +1,10 @@
-import { json } from '@remix-run/node'
+import { json, type LoaderFunctionArgs } from '@remix-run/node'
 import { GeneralErrorBoundary } from '#app/components/error-boundary.tsx'
 import { Spacer } from '#app/components/spacer.tsx'
+import { requireUserWithRole } from '#app/utils/permissions.ts'
 
-export async function loader() {
-	// 🐨 lock down this route to only users with the "admin" role with the
-	// requireUserWithRole utility
+export async function loader({ request }: LoaderFunctionArgs) {
+	await requireUserWithRole(request, 'admin')
 	return json({})
 }
 
