@@ -34,7 +34,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 				},
 			},
 			password: false, // <-- intentionally omit password
-			// 🐨 let's include the user's sessions here as well.
+			sessions: true,
 		},
 	})
 
