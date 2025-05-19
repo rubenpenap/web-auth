@@ -10,31 +10,22 @@ const SESSION_EXPIRATION_TIME = 1000 * 60 * 60 * 24 * 30
 export const getSessionExpirationDate = () =>
 	new Date(Date.now() + SESSION_EXPIRATION_TIME)
 
-// 🐨 update this from 'userId' to 'sessionId'
-// but don't change the variable name just yet. We'll do that in the next step
-export const userIdKey = 'userId'
+export const userIdKey = 'sessionId'
 
 export async function getUserId(request: Request) {
 	const cookieSession = await sessionStorage.getSession(
 		request.headers.get('cookie'),
 	)
-	// 🐨 this isn't a userId anymore, it's a sessionId
-	const userId = cookieSession.get(userIdKey)
-	if (!userId) return null
-	// 🐨 query the session table instead. Do a subquery to get the user id
-	// 💰 make sure to only select sessions that have not yet expired!
-	// 📜 https://www.prisma.io/docs/reference/api-reference/prisma-client-reference#gt
-	const user = await prisma.user.findUnique({
-		select: { id: true },
-		where: { id: userId },
+	const sessionId = cookieSession.get(userIdKey)
+	if (!sessionId) return null
+	const session = await prisma.session.findUnique({
+		select: { userId: true },
+		where: { id: sessionId },
 	})
-	// 🐨 if the session you get back doesn't exist or doesn't have a user, then
-	// we'll log the user out.
-	if (!user) {
+	if (!session) {
 		throw await logout({ request })
 	}
-	// 🐨 return the user id from the session
-	return user.id
+	return session.userId
 }
 
 export async function requireUserId(
@@ -83,16 +74,16 @@ export async function login({
 	username: User['username']
 	password: string
 }) {
-	// 🐨 this will be a little more involved now...
 	const user = await verifyUserPassword({ username }, password)
-	// 🐨 if there's no user, then return null
-	// 🐨 if there is a user, then create a session with the expiration date
-	// set to new Date(Date.now() + SESSION_EXPIRATION_TIME)
-	// and set the userId to the user.id
-	// 💰 make sure to select both the session id and the session experation date
-
-	// 🐨 return the session instead of the user:
-	return user
+	if (!user) return null
+	const session = await prisma.session.create({
+		select: { id: true, expirationDate: true },
+		data: {
+			expirationDate: new Date(Date.now() + SESSION_EXPIRATION_TIME),
+			userId: user.id,
+		},
+	})
+	return session
 }
 
 export async function signup({
@@ -107,31 +98,26 @@ export async function signup({
 	password: string
 }) {
 	const hashedPassword = await getPasswordHash(password)
-
-	// this bit will be a little more complicated
-	// 🐨 create a session in the session table
-	// 🐨 set the expiration date to new Date(Date.now() + SESSION_EXPIRATION_TIME)
-	// 🐨 do a sub-query to create the user along with the session.
-	// 💰 The existing query we have will work well as the sub-query there.
-	// 🐨 make sure to select the id and expirationDate of the session you just
-	// created.
-	const user = await prisma.user.create({
-		select: { id: true },
+	const session = await prisma.session.create({
+		select: { id: true, expirationDate: true },
 		data: {
-			email: email.toLowerCase(),
-			username: username.toLowerCase(),
-			name,
-			roles: { connect: { name: 'user' } },
-			password: {
+			expirationDate: new Date(Date.now() + SESSION_EXPIRATION_TIME),
+			user: {
 				create: {
-					hash: hashedPassword,
+					email: email.toLowerCase(),
+					username: username.toLowerCase(),
+					name,
+					roles: { connect: { name: 'user' } },
+					password: {
+						create: {
+							hash: hashedPassword,
+						},
+					},
 				},
 			},
 		},
 	})
-
-	// 🐨 return the session instead of the user.
-	return user
+	return session
 }
 
 export async function logout(
@@ -147,11 +133,8 @@ export async function logout(
 	const cookieSession = await sessionStorage.getSession(
 		request.headers.get('cookie'),
 	)
-	// 🐨 get the sessionId from the cookieSession
-	// 🐨 delete the session from the database by that sessionId
-	// 💯 it's possible the session doesn't exist, so handle that case gracefully
-	// and make sure we don't prevent the user from logging out if that happens
-	// 💯 don't wait for the session to be deleted before proceeding with the logout
+	const sessionId = cookieSession.get(userIdKey)
+	void prisma.session.delete({ where: { id: sessionId } }).catch(() => {})
 	throw redirect(
 		safeRedirect(redirectTo),
 		combineResponseInits(responseInit, {
