@@ -21,6 +21,8 @@ import { sendEmail } from '#app/utils/email.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
 import { useIsPending } from '#app/utils/misc.tsx'
 import { EmailSchema } from '#app/utils/user-validation.ts'
+import { verifySessionStorage } from '#app/utils/verification.server.ts'
+import { onboardingEmailSessionKey } from './onboarding.tsx'
 
 const SignupSchema = z.object({
 	email: EmailSchema,
@@ -69,15 +71,15 @@ export async function action({ request }: ActionFunctionArgs) {
 	})
 
 	if (response.status === 'success') {
-		// You'll want to actually wait until the user has verified their email
-		// before setting this in the session and sending them to onboarding, but
-		// we'll get to that later.
-
-		// 🐨 get the user's verifySession from your new verifySessionStorage
-		// 🐨 set the onboardingEmailSessionKey in the verifySession to the email
-		// 💰 the onboardingEmailSessionKey comes from './onboarding.tsx'
-		// 🐨 commit the verifySession to the verifySessionStorage
-		return redirect('/onboarding')
+		const verifySession = await verifySessionStorage.getSession(
+			request.headers.get('Cookie'),
+		)
+		verifySession.set(onboardingEmailSessionKey, email)
+		return redirect('/onboarding', {
+			headers: {
+				'set-cookie': await verifySessionStorage.commitSession(verifySession),
+			},
+		})
 	} else {
 		submission.error[''] = [response.error]
 		return json({ status: 'error', submission } as const, { status: 500 })
