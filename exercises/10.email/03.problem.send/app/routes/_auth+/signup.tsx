@@ -20,6 +20,7 @@ import { prisma } from '#app/utils/db.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
 import { useIsPending } from '#app/utils/misc.tsx'
 import { EmailSchema } from '#app/utils/user-validation.ts'
+import { sendEmail } from '#app/utils/email.server.ts'
 
 const SignupSchema = z.object({
 	email: EmailSchema,
@@ -61,13 +62,11 @@ export async function action({ request }: ActionFunctionArgs) {
 	}
 	const { email } = submission.value
 
-	// 🐨 send a simple email to the user's email address just to test things out.
-	// 💰 replace this hard-coded response with the result from sendEmail
-	// 💰 subject and text can be whatever you like.
-	const response = {
-		status: 'error',
-		error: `this has not yet been implemented ${email}`,
-	}
+	const response = await sendEmail({
+		to: email,
+		subject: 'Welcome to Epic Notes!',
+		text: 'this is a test of the text property',
+	})
 
 	if (response.status === 'success') {
 		// we'll handle this soon...
