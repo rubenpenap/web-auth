@@ -13,13 +13,17 @@ import { z } from 'zod'
 import { ErrorList, Field } from '#app/components/forms.tsx'
 import { Icon } from '#app/components/ui/icon.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
-import { type VerifyFunctionArgs } from '#app/routes/_auth+/verify.tsx'
+import {
+	prepareVerification,
+	type VerifyFunctionArgs,
+} from '#app/routes/_auth+/verify.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { sendEmail } from '#app/utils/email.server.ts'
 import { useIsPending } from '#app/utils/misc.tsx'
 import { EmailSchema } from '#app/utils/user-validation.ts'
+import { verifySessionStorage } from '#app/utils/verification.server.ts'
 
 export const handle = {
 	breadcrumb: <Icon name="envelope-closed">Change Email</Icon>,
@@ -54,8 +58,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-	// 🐨 get the userId from this call:
-	await requireUserId(request)
+	const userId = await requireUserId(request)
 	const formData = await request.formData()
 	await validateCSRF(formData, request.headers)
 	const submission = await parse(formData, {
@@ -80,12 +83,13 @@ export async function action({ request }: ActionFunctionArgs) {
 	if (!submission.value) {
 		return json({ status: 'error', submission } as const, { status: 400 })
 	}
-	// 🐨 get the otp, redirectUrl, and verifyUrl from prepareVerification
-	// 💰 you'll need to create a new verification type in verify.tsx
-	// 🐨 the target should be the user's id
-	const otp = 'get this from prepareVerification'
-	const redirectTo = 'get this from prepareVerification'
-	const verifyUrl = 'get this from prepareVerification'
+
+	const { otp, redirectTo, verifyUrl } = await prepareVerification({
+		period: 10 * 60,
+		request,
+		target: userId,
+		type: 'change-email',
+	})
 
 	const response = await sendEmail({
 		to: submission.value.email,
@@ -94,12 +98,14 @@ export async function action({ request }: ActionFunctionArgs) {
 	})
 
 	if (response.status === 'success') {
-		// 🐨 get the user's verifySession
-		// 🐨 set the newEmailAddressSessionKey to the email address
+		const verifySession = await verifySessionStorage.getSession(
+			request.headers.get('cookie'),
+		)
+		verifySession.set(newEmailAddressSessionKey, submission.value.email)
 
 		return redirect(redirectTo.toString(), {
 			headers: {
-				// 🐨 commit the verifySession here
+				'set-cookie': await verifySessionStorage.commitSession(verifySession),
 			},
 		})
 	} else {
