@@ -20,6 +20,7 @@ import { StatusButton } from '#app/components/ui/status-button.tsx'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { getDomainUrl, useIsPending } from '#app/utils/misc.tsx'
+import { handleVerification as handleChangeEmailVerification } from '../settings+/profile.change-email.tsx'
 import { handleVerification as handleOnboardingVerification } from './onboarding.tsx'
 import { handleVerification as handleResetPasswordVerification } from './reset-password.tsx'
 
@@ -27,8 +28,7 @@ export const codeQueryParam = 'code'
 export const targetQueryParam = 'target'
 export const typeQueryParam = 'type'
 export const redirectToQueryParam = 'redirectTo'
-// 🐨 add 'change-email' to this
-const types = ['onboarding', 'reset-password'] as const
+const types = ['onboarding', 'reset-password', 'change-email'] as const
 const VerificationTypeSchema = z.enum(types)
 export type VerificationTypes = z.infer<typeof VerificationTypeSchema>
 
@@ -211,7 +211,9 @@ async function validateRequest(
 		case 'onboarding': {
 			return handleOnboardingVerification({ request, body, submission })
 		}
-		// 🐨 handle the 'change-email' case here
+		case 'change-email': {
+			return handleChangeEmailVerification({ request, body, submission })
+		}
 	}
 }
 
