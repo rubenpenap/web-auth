@@ -19,6 +19,7 @@ import { prisma } from '#app/utils/db.server.ts'
 import { sendEmail } from '#app/utils/email.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
 import { EmailSchema, UsernameSchema } from '#app/utils/user-validation.ts'
+import { prepareVerification } from './verify.tsx'
 
 const ForgotPasswordSchema = z.object({
 	usernameOrEmail: z.union([EmailSchema, UsernameSchema]),
@@ -63,15 +64,12 @@ export async function action({ request }: ActionFunctionArgs) {
 		select: { email: true, username: true },
 	})
 
-	// 🐨 create a verification code for the user using the prepareVerification
-	// utility in ./verify.tsx
-	// 🐨 it should be valid for at least 10 minutes and the target should be
-	// the usernameOrEmail. Also, you'll need to create a new verification type in
-	// ./verify.tsx for this first
-
-	const redirectTo = 'You get this from prepareVerification'
-	const verifyUrl = 'You get this from prepareVerification'
-	const otp = 'You get this from prepareVerification'
+	const { redirectTo, verifyUrl, otp } = await prepareVerification({
+		period: 10 * 60,
+		request,
+		target: usernameOrEmail,
+		type: 'reset-password',
+	})
 
 	const response = await sendEmail({
 		to: user.email,
