@@ -1,6 +1,6 @@
 import { conform, useForm } from '@conform-to/react'
 import { getFieldsetConstraint, parse } from '@conform-to/zod'
-import generateTOTP from '@epic-web/totp'
+import { generateTOTP } from '@epic-web/totp'
 import {
 	json,
 	redirect,
@@ -20,7 +20,7 @@ import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { sendEmail } from '#app/utils/email.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
-import { useIsPending } from '#app/utils/misc.tsx'
+import { getDomainUrl, useIsPending } from '#app/utils/misc.tsx'
 import { EmailSchema } from '#app/utils/user-validation.ts'
 
 const SignupSchema = z.object({
@@ -90,7 +90,7 @@ export async function action({ request }: ActionFunctionArgs) {
 	const response = await sendEmail({
 		to: email,
 		subject: `Welcome to Epic Notes!`,
-		text: `Here is your code ${opt}! ${verifyUrl}`,
+		text: `Here is your code ${otp}! ${verifyUrl}`,
 	})
 
 	if (response.status === 'success') {
