@@ -21,7 +21,8 @@ import { requireUserId } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { sendEmail } from '#app/utils/email.server.ts'
-import { useIsPending } from '#app/utils/misc.tsx'
+import { invariant, useIsPending } from '#app/utils/misc.tsx'
+import { redirectWithToast } from '#app/utils/toast.server.ts'
 import { EmailSchema } from '#app/utils/user-validation.ts'
 import { verifySessionStorage } from '#app/utils/verification.server.ts'
 
@@ -35,16 +36,44 @@ export async function handleVerification({
 	request,
 	submission,
 }: VerifyFunctionArgs) {
-	// 🐨 get the verifySession from verifySessionStorage
-	// 🐨 get the newEmail from the verifySession
-	// 🐨 if there's no newEmail, then return an error with something like:
-	// 'You must submit the code on the same device that requested the email change.'
-	// 🐨 get the user's email address *before* the change so we can notify it of the change
-	// 🐨 update the user with the new email address where the ID is the submission.value.target
-	// 🐨 use redirectWithToast to send the user to /settings/profile and tell them the change was successful
-	// 🐨 make sure to destroy the verifySession.
-	submission.error[''] = [`We'll implement this soon`]
-	return json({ status: 'error', submission } as const, { status: 500 })
+	invariant(submission.value, 'submission.value must be defined')
+	const verifySession = await verifySessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+	const newEmail = verifySession.get(newEmailAddressSessionKey)
+	if (!newEmail) {
+		submission.error[''] = [
+			'You must submit the code on the same device that requested the email change.',
+		]
+	}
+	const prevUser = await prisma.user.findUniqueOrThrow({
+		where: { id: submission.value.target },
+		select: { email: true },
+	})
+	const user = await prisma.user.update({
+		where: { id: submission.value.target },
+		data: { email: newEmail },
+	})
+
+	void sendEmail({
+		to: prevUser.email,
+		subject: 'Epic Notes Email Change Notice',
+		react: <EmailChangeNoticeEmail userId={user.id} />,
+	})
+
+	throw redirectWithToast(
+		'/settings/profile',
+		{
+			title: 'Email Changed',
+			type: 'success',
+			description: `Your email has been change to: ${user.email}`,
+		},
+		{
+			headers: {
+				'set-cookie': await verifySessionStorage.destroySession(verifySession),
+			},
+		},
+	)
 }
 
 const ChangeEmailSchema = z.object({
