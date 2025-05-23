@@ -19,11 +19,13 @@ import { z } from 'zod'
 import { Field } from '#app/components/forms.tsx'
 import { Icon } from '#app/components/ui/icon.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
+import { isCodeValid } from '#app/routes/_auth+/verify.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { getDomainUrl, useIsPending } from '#app/utils/misc.tsx'
 import { redirectWithToast } from '#app/utils/toast.server.ts'
+import { twoFAVerificationType } from './profile.two-factor.tsx'
 
 export const handle = {
 	breadcrumb: <Icon name="check">Verify</Icon>,
@@ -81,9 +83,11 @@ export async function action({ request }: ActionFunctionArgs) {
 	const submission = await parse(formData, {
 		schema: () =>
 			VerifySchema.superRefine(async (data, ctx) => {
-				// 🐨 determine whether the code is valid using the isCodeValid util from
-				// '#app/routes/_auth+/verify.tsx'
-				const codeIsValid = false
+				const codeIsValid = await isCodeValid({
+					code: data.code,
+					target: userId,
+					type: twoFAVerifyVerificationType,
+				})
 				if (!codeIsValid) {
 					ctx.addIssue({
 						path: ['code'],
@@ -104,8 +108,15 @@ export async function action({ request }: ActionFunctionArgs) {
 		return json({ status: 'error', submission } as const, { status: 400 })
 	}
 
-	// 🐨 update the verification from the twoFAVerifyVerifycationType to the twoFAVerificationType
-	// 🐨 set the expiresAt to null! This should never expire.
+	await prisma.verification.update({
+		where: {
+			target_type: { type: twoFAVerifyVerificationType, target: userId },
+		},
+		data: {
+			type: twoFAVerificationType,
+			expiresAt: null,
+		},
+	})
 
 	throw await redirectWithToast('/settings/profile/two-factor', {
 		type: 'success',
