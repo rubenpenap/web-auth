@@ -1,3 +1,4 @@
+import { generateTOTP } from '@epic-web/totp'
 import {
 	json,
 	redirect,
@@ -10,7 +11,9 @@ import { Icon } from '#app/components/ui/icon.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
+import { prisma } from '#app/utils/db.server.ts'
 import { useIsPending } from '#app/utils/misc.tsx'
+import { twoFAVerifyVerificationType } from './profile.two-factor.verify.tsx'
 
 export async function loader({ request }: LoaderFunctionArgs) {
 	await requireUserId(request)
@@ -18,15 +21,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-	// 🐨 get the userId from here:
-	await requireUserId(request)
+	const userId = await requireUserId(request)
 	const formData = await request.formData()
 	await validateCSRF(formData, request.headers)
-	// 🐨 generate the otp config with generateTOTP (you don't need the otp that's returned, just the config)
-	// 🐨 upsert the verification with the config.
-	// 🐨 the type should be twoFAVerifyVerificationType which you can get from './profile.two-factor.verify.tsx'
-	// 🐨 the target should be the userId
-	// 🐨 Set the expiresAt to 10 minutes from now
+	const { otp: _otp, ...config } = generateTOTP()
+	const verificationData = {
+		...config,
+		type: twoFAVerifyVerificationType,
+		target: userId,
+		expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+	}
+	await prisma.verification.upsert({
+		where: {
+			target_type: { target: userId, type: twoFAVerifyVerificationType },
+		},
+		update: verificationData,
+		create: verificationData,
+	})
 	return redirect('/settings/profile/two-factor/verify')
 }
 
