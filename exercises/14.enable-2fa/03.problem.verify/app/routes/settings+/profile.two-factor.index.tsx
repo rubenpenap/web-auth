@@ -13,15 +13,18 @@ import { requireUserId } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { useIsPending } from '#app/utils/misc.tsx'
+import { twoFAVerificationType } from './profile.two-factor.tsx'
 import { twoFAVerifyVerificationType } from './profile.two-factor.verify.tsx'
 
 export async function loader({ request }: LoaderFunctionArgs) {
-	// 🐨 get the user's id from here:
-	await requireUserId(request)
-	// 🐨 determine whether the user has 2fa by checking for a verification and
-	// by the type twoFAVerificationType and the target being the userId.
-	// 🐨 Set isTwoFAEnabled to true if it exists.
-	return json({ isTwoFAEnabled: false })
+	const userId = await requireUserId(request)
+	const verification = await prisma.verification.findUnique({
+		select: { id: true },
+		where: {
+			target_type: { target: userId, type: twoFAVerificationType },
+		},
+	})
+	return json({ isTwoFAEnabled: Boolean(verification) })
 }
 
 export async function action({ request }: ActionFunctionArgs) {
