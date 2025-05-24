@@ -18,10 +18,14 @@ import { Spacer } from '#app/components/spacer.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
 import { login, requireAnonymous, sessionKey } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
+import { prisma } from '#app/utils/db.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
 import { useIsPending } from '#app/utils/misc.tsx'
 import { sessionStorage } from '#app/utils/session.server.ts'
 import { PasswordSchema, UsernameSchema } from '#app/utils/user-validation.ts'
+import { twoFAVerificationType } from '../settings+/profile.two-factor.tsx'
+import { getRedirectToUrl } from './verify.tsx'
+import { verifySessionStorage } from '#app/utils/verification.server.ts'
 
 const LoginFormSchema = z.object({
 	username: UsernameSchema,
@@ -72,30 +76,49 @@ export async function action({ request }: ActionFunctionArgs) {
 
 	const { session, remember, redirectTo } = submission.value
 
-	// 🐨 determine whether the user has 2fa enabled by looking for a verification
-	// in the database with the user's id and the twoFAVerificationType
-	// 💰 you're going to need to update the login utility to retrieve the user's id.
-
-	// 🐨 if the user has 2fa enabled, set the session.id in a verifySession cookie
-	// under something like "unverified-session-id"
-	// 🐨 also set the user's "remember me" preference in the verifySession cookie
-	// 🐨 use the getRedirectToUrl utility from the verify route.
-	// 🐨 redirect the user to the verify route
-
-	// 🐨 if the user does not have 2fa enabled, then we can follow the old logic:
-
-	const cookieSession = await sessionStorage.getSession(
-		request.headers.get('cookie'),
-	)
-	cookieSession.set(sessionKey, session.id)
-
-	return redirect(safeRedirect(redirectTo), {
-		headers: {
-			'set-cookie': await sessionStorage.commitSession(cookieSession, {
-				expires: remember ? session.expirationDate : undefined,
-			}),
+	const verification = await prisma.verification.findUnique({
+		select: { id: true },
+		where: {
+			target_type: {
+				target: session.userId,
+				type: twoFAVerificationType,
+			},
 		},
 	})
+
+	const userHasTwoFA = Boolean(verification)
+	const verifySessionKey = 'unverified-session-id'
+	const rememberMeKey = 'remember-me'
+
+	if (userHasTwoFA) {
+		const verifySession = await verifySessionStorage.getSession()
+		verifySession.set(verifySessionKey, session.id)
+		verifySession.set(rememberMeKey, remember)
+		const redirectUrl = getRedirectToUrl({
+			request,
+			type: twoFAVerificationType,
+			target: session.userId,
+			redirectTo,
+		})
+		return redirect(redirectUrl.toString(), {
+			headers: {
+				'set-cookie': await verifySessionStorage.commitSession(verifySession),
+			},
+		})
+	} else {
+		const cookieSession = await sessionStorage.getSession(
+			request.headers.get('cookie'),
+		)
+		cookieSession.set(sessionKey, session.id)
+
+		return redirect(safeRedirect(redirectTo), {
+			headers: {
+				'set-cookie': await sessionStorage.commitSession(cookieSession, {
+					expires: remember ? session.expirationDate : undefined,
+				}),
+			},
+		})
+	}
 }
 
 export default function LoginPage() {
