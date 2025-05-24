@@ -23,6 +23,7 @@ import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { getDomainUrl, useIsPending } from '#app/utils/misc.tsx'
 import { type twoFAVerifyVerificationType } from '../settings+/profile.two-factor.verify.tsx'
+import { handleVerification as handle2FAVerification } from './login.tsx'
 import { handleVerification as handleOnboardingVerification } from './onboarding.tsx'
 import { handleVerification as handleResetPasswordVerification } from './reset-password.tsx'
 
@@ -200,31 +201,32 @@ async function validateRequest(
 	// 🐨 we don't want to delete the user's 2FA verification, so stick this
 	// delete call in a function called `deleteVerification` and we'll call it
 	// where it's needed.
-	await prisma.verification.delete({
-		where: {
-			target_type: {
-				target: submissionValue[targetQueryParam],
-				type: submissionValue[typeQueryParam],
+	async function deleteVerification() {
+		await prisma.verification.delete({
+			where: {
+				target_type: {
+					target: submissionValue[targetQueryParam],
+					type: submissionValue[typeQueryParam],
+				},
 			},
-		},
-	})
+		})
+	}
 
 	switch (submissionValue[typeQueryParam]) {
 		case 'reset-password': {
-			// 🐨 call deleteVerification()
+			await deleteVerification()
 			return handleResetPasswordVerification({ request, body, submission })
 		}
 		case 'onboarding': {
-			// 🐨 call deleteVerification()
+			await deleteVerification()
 			return handleOnboardingVerification({ request, body, submission })
 		}
 		case 'change-email': {
-			// 🐨 call deleteVerification()
+			await deleteVerification()
 			return handleChangeEmailVerification({ request, body, submission })
 		}
 		case '2fa': {
-			// 🐨 call handleVerification from './login.tsx'
-			throw new Error('not yet implemented')
+			return handle2FAVerification({ request, body, submission })
 		}
 	}
 }
