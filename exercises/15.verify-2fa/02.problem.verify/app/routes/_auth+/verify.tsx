@@ -198,9 +198,6 @@ async function validateRequest(
 
 	const { value: submissionValue } = submission
 
-	// 🐨 we don't want to delete the user's 2FA verification, so stick this
-	// delete call in a function called `deleteVerification` and we'll call it
-	// where it's needed.
 	async function deleteVerification() {
 		await prisma.verification.delete({
 			where: {
