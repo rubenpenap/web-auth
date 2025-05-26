@@ -13,28 +13,45 @@ import { prisma } from '#app/utils/db.server.ts'
 import { useDoubleCheck, useIsPending } from '#app/utils/misc.tsx'
 import { redirectWithToast } from '#app/utils/toast.server.ts'
 import { twoFAVerificationType } from './profile.two-factor.tsx'
+import { shouldRequestTwoFA } from '../_auth+/login.tsx'
+import { getRedirectToUrl } from '../_auth+/verify.tsx'
 
 export const handle = {
 	breadcrumb: <Icon name="lock-open-1">Disable</Icon>,
 }
 
-// 🐨 create a "requireRecentVerification" function that accepts a request and the userId
-// 🐨 call shouldRequestTwoFA with the request and userId
-// 🐨 if we should reverify, then get a verification URL with getRedirectToUrl
-// from '#app/routes/_auth+/verify.tsx'
-// 🐨 redirect to that URL
-// 💯 as a bonus, use redirectWithToast and let the user know why they're being
-// required to reverify.
+export async function requireRecentVerification({
+	request,
+	userId,
+}: {
+	request: Request
+	userId: string
+}) {
+	const shouldReverify = await shouldRequestTwoFA({ request, userId })
+	if (shouldReverify) {
+		const reqUrl = new URL(request.url)
+		const verifyUrl = getRedirectToUrl({
+			request,
+			target: userId,
+			type: twoFAVerificationType,
+			redirectTo: reqUrl.pathname + reqUrl.search,
+		})
+		throw await redirectWithToast(verifyUrl.toString(), {
+			title: 'Please Reverify',
+			description: 'You must reverify your account before disabling 2FA',
+		})
+	}
+}
 
 export async function loader({ request }: LoaderFunctionArgs) {
-	await requireUserId(request)
-	// 🐨 call requireRecentVerification with the request and userId (from requireUserId)
+	const userId = await requireUserId(request)
+	await requireRecentVerification({ request, userId })
 	return json({})
 }
 
 export async function action({ request }: ActionFunctionArgs) {
 	const userId = await requireUserId(request)
-	// 🐨 call requireRecentVerification with the request and userId
+	await requireRecentVerification({ request, userId })
 	const formData = await request.formData()
 	await validateCSRF(formData, request.headers)
 	await prisma.verification.delete({
