@@ -9,8 +9,10 @@ import { Icon } from '#app/components/ui/icon.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
 import { requireUserId } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
+import { prisma } from '#app/utils/db.server.ts'
 import { useDoubleCheck, useIsPending } from '#app/utils/misc.tsx'
 import { redirectWithToast } from '#app/utils/toast.server.ts'
+import { twoFAVerificationType } from './profile.two-factor.tsx'
 
 export const handle = {
 	breadcrumb: <Icon name="lock-open-1">Disable</Icon>,
@@ -22,17 +24,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-	// 🐨 get the userId from this:
-	await requireUserId(request)
+	const userId = await requireUserId(request)
 	const formData = await request.formData()
 	await validateCSRF(formData, request.headers)
 
-	// 🐨 delete the user's twoFAVerificationType verification from the database
+	await prisma.verification.delete({
+		where: { target_type: { type: twoFAVerificationType, target: userId } },
+	})
 
 	throw await redirectWithToast('/settings/profile/two-factor', {
-		// 🐨 fix this title and description
-		title: '2FA Disabled (jk)',
-		description: 'This has not yet been implemented',
+		title: '2FA Disabled',
+		type: 'success',
+		description: 'Two factor authentication has been disabled',
 	})
 }
 
