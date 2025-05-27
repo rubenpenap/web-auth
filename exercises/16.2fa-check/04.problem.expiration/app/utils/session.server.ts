@@ -11,11 +11,25 @@ export const sessionStorage = createCookieSessionStorage({
 	},
 })
 
-// 🐨 save the sessionStorage.commitSession in a variable so you can call it later
-// 🐨 override the sessionStorage.commitSession using Object.defineProperty
-// 🐨 if the options.expires is provided, use session.set('expires') to store it
-// 🐨 if the options.maxAge is provided, calculate the expires value and store it in 'expires'
-// 🐨 get the expires value from the session
-// 🐨 call the originalCommitSession function
-// 🐨 be sure to set the expires option to the value you got from the session
-// 🐨 return the setCookieHeader
+const originalCommitSession = sessionStorage.commitSession
+
+Object.defineProperty(sessionStorage, 'commitSession', {
+	value: async (...args: Parameters<typeof originalCommitSession>) => {
+		const [session, options] = args
+		if (options?.expires) {
+			session.set('expires', options.expires)
+		}
+		if (options?.maxAge) {
+			const expires = new Date(Date.now() + options.maxAge * 1000)
+			session.set('expires', expires)
+		}
+		const expires = session.has('expires')
+			? new Date(session.get('expires'))
+			: undefined
+		const setCookieHeader = await originalCommitSession(session, {
+			...options,
+			expires,
+		})
+		return setCookieHeader
+	},
+})
