@@ -17,8 +17,7 @@ import { CheckboxField, ErrorList, Field } from '#app/components/forms.tsx'
 import { Spacer } from '#app/components/spacer.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
 import { login, requireAnonymous, sessionKey } from '#app/utils/auth.server.ts'
-// 💰 you're gonna need this:
-// import { ProviderConnectionForm } from '#app/utils/connections.tsx'
+import { ProviderConnectionForm } from '#app/utils/connections.tsx'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
@@ -280,9 +279,7 @@ export default function LoginPage() {
 							</div>
 						</Form>
 						<div className="mt-5 flex flex-col gap-5 border-b-2 border-t-2 border-border py-3">
-							{/* 🐨 add the ProviderConnectionForm here,
-									the type should be "Login" and the providerName should be "github"
-							*/}
+							<ProviderConnectionForm type='Login' providerName='github' />
 						</div>
 						<div className="flex items-center justify-center gap-2 pt-6">
 							<span className="text-muted-foreground">New here?</span>
