@@ -33,9 +33,46 @@ const verifiedTimeKey = 'verified-time'
 const unverifiedSessionIdKey = 'unverified-session-id'
 const rememberKey = 'remember-me'
 
-// 🐨 you can export a handleNewSession function here, you'll get its contents
-// from the action below.
-// 🐨 it should take a request, session, redirectTo, and remember
+export async function handleNewSession({
+	request,
+	session,
+	redirectTo,
+	remember = false,
+}: {
+	request: Request
+	session: { id: string; userId: string; expirationDate: Date }
+	redirectTo?: string
+	remember?: boolean
+}) {
+	if (await shouldRequestTwoFA({ request, userId: session.userId })) {
+		const verifySession = await verifySessionStorage.getSession()
+		verifySession.set(unverifiedSessionIdKey, session.id)
+		verifySession.set(rememberKey, remember)
+		const redirectUrl = getRedirectToUrl({
+			request,
+			type: twoFAVerificationType,
+			target: session.userId,
+		})
+		return redirect(redirectUrl.toString(), {
+			headers: {
+				'set-cookie': await verifySessionStorage.commitSession(verifySession),
+			},
+		})
+	} else {
+		const cookieSession = await sessionStorage.getSession(
+			request.headers.get('cookie'),
+		)
+		cookieSession.set(sessionKey, session.id)
+
+		return redirect(safeRedirect(redirectTo), {
+			headers: {
+				'set-cookie': await sessionStorage.commitSession(cookieSession, {
+					expires: remember ? session.expirationDate : undefined,
+				}),
+			},
+		})
+	}
+}
 
 export async function handleVerification({
 	request,
@@ -164,38 +201,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 	const { session, remember, redirectTo } = submission.value
 
-	// 🦉 we need this for the third party auth login
-	// 🐨 move everything from here to the bottom of the function into a new function
-	// called `handleNewSession`.
-	// It should take the request, session, remember, and redirectTo
-	if (await shouldRequestTwoFA({ request, userId: session.userId })) {
-		const verifySession = await verifySessionStorage.getSession()
-		verifySession.set(unverifiedSessionIdKey, session.id)
-		verifySession.set(rememberKey, remember)
-		const redirectUrl = getRedirectToUrl({
-			request,
-			type: twoFAVerificationType,
-			target: session.userId,
-		})
-		return redirect(redirectUrl.toString(), {
-			headers: {
-				'set-cookie': await verifySessionStorage.commitSession(verifySession),
-			},
-		})
-	} else {
-		const cookieSession = await sessionStorage.getSession(
-			request.headers.get('cookie'),
-		)
-		cookieSession.set(sessionKey, session.id)
-
-		return redirect(safeRedirect(redirectTo), {
-			headers: {
-				'set-cookie': await sessionStorage.commitSession(cookieSession, {
-					expires: remember ? session.expirationDate : undefined,
-				}),
-			},
-		})
-	}
+	return await handleNewSession({ request, session, redirectTo, remember })
 }
 
 export default function LoginPage() {
