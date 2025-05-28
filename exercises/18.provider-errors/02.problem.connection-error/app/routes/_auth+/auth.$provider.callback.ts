@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs } from '@remix-run/node'
-import { authenticator } from '#app/utils/auth.server.ts'
+import { authenticator, getUserId } from '#app/utils/auth.server.ts'
 import { ProviderNameSchema, providerLabels } from '#app/utils/connections.tsx'
+import { prisma } from '#app/utils/db.server.ts'
 import { redirectWithToast } from '#app/utils/toast.server.ts'
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -20,15 +21,28 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 		})
 
 	console.log({ profile })
-	// 🐨 check the database for an existing connection
-	// via the providerName and providerId (profile.id) and select the userId
+	const existingConnection = await prisma.connection.findUnique({
+		select: { userId: true },
+		where: {
+			providerName_providerId: {
+				providerName,
+				providerId: profile.id,
+			},
+		},
+	})
 
-	// 🐨 get the userId from the session (getUserId(request))
+	const userId = await getUserId(request)
 
-	// 🐨 if there's an existing connection and a userId, then there's a conflict... Either:
-	// 1. The account is already connected to their own account
-	// 2. The account is already connected to someone else's account
-	// 🐨 redirect to the /settings/profile/connections route with an apprpropriate toast message
+	if (existingConnection && userId) {
+		throw await redirectWithToast('/settings/profile/connections', {
+			type: 'error',
+			title: 'Already Connected',
+			description:
+				existingConnection.userId === userId
+					? `You have already connected your account to ${label}.`
+					: `That's someone else's account to ${label}.`,
+		})
+	}
 
 	throw await redirectWithToast('/login', {
 		title: 'Auth Success (jk)',
