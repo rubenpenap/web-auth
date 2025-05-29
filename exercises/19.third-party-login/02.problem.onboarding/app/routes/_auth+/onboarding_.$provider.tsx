@@ -23,6 +23,7 @@ import {
 	authenticator,
 	requireAnonymous,
 	sessionKey,
+	signupWithConnection,
 } from '#app/utils/auth.server.ts'
 import { ProviderNameSchema } from '#app/utils/connections.tsx'
 import { prisma } from '#app/utils/db.server.ts'
@@ -34,7 +35,7 @@ import { type VerifyFunctionArgs } from './verify.tsx'
 
 export const onboardingEmailSessionKey = 'onboardingEmail'
 export const providerIdKey = 'providerId'
-// 🐨 export a prefilledProfileKey here
+export const prefilledProfileKey = 'prefilledProfileKey'
 
 const SignupFormSchema = z.object({
 	imageUrl: z.string().optional(),
@@ -80,7 +81,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 	const cookieSession = await sessionStorage.getSession(
 		request.headers.get('cookie'),
 	)
-	// 🐨 get the prefilledProfile from the verifySession using the verifySessionStorage
+	const verifySession = await verifySessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+	const prefilledProfile = verifySession.get(prefilledProfileKey)
 
 	const formError = cookieSession.get(authenticator.sessionErrorKey)
 
@@ -89,9 +93,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 		status: 'idle',
 		submission: {
 			intent: '',
-			// 🐨 swap this:
-			// payload: (prefilledProfile ?? {}) as Record<string, unknown>,
-			payload: {} as Record<string, unknown>,
+			payload: (prefilledProfile ?? {}) as Record<string, unknown>,
 			error: {
 				'': typeof formError === 'string' ? [formError] : [],
 			},
@@ -124,16 +126,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
 				return
 			}
 		}).transform(async data => {
-			// 🐨 call the signupWithConnection function from the auth.server.ts module
-			// if you haven't created that yet, do that now.
-			console.log('TODO: implement third party onboarding', {
+			const session = await signupWithConnection({
 				...data,
 				email,
 				providerId,
 				providerName,
 			})
-			// 💣 delete this... The session should come from signupWithConnection
-			const session = { id: 'TODO', expirationDate: new Date() }
 			return { ...data, session }
 		}),
 		async: true,
