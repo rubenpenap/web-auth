@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from '@remix-run/node'
+import { redirect, type LoaderFunctionArgs } from '@remix-run/node'
 import {
 	authenticator,
 	getSessionExpirationDate,
@@ -7,13 +7,13 @@ import {
 import { ProviderNameSchema, providerLabels } from '#app/utils/connections.tsx'
 import { prisma } from '#app/utils/db.server.ts'
 import { redirectWithToast } from '#app/utils/toast.server.ts'
+import { verifySessionStorage } from '#app/utils/verification.server.ts'
 import { handleNewSession } from './login.tsx'
-// 💰 you're gonna want these:
-// import {
-// 	onboardingEmailSessionKey,
-// 	prefilledProfileKey,
-// 	providerIdKey,
-// } from './onboarding_.$provider.tsx'
+import {
+	onboardingEmailSessionKey,
+	prefilledProfileKey,
+	providerIdKey,
+} from './onboarding_.$provider.tsx'
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
 	const providerName = ProviderNameSchema.parse(params.provider)
@@ -61,20 +61,22 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 		return handleNewSession({ request, session, remember: true })
 	}
 
-	// 🐨 get the verifySession here from verifySessionStorage.getSession
-	// 🐨 set the onboardingEmailSessionKey to the profile.email
-	// 🐨 set the prefilledProfileKey to the profile (you'll need to create this in the onboarding_.$provider route)
-	// 💯 as extra credit, make sure the username matches our rules:
-	// 1. only alphanumeric characters
-	// 2. lowercase
-	// 3. 3-20 characters long
-	// 💰 you can replace invalid characters with "_"
-	// 🐨 set the providerIdKey to the profile.id
-	// return a redirect to `/onboarding/${providerName}` and commit the verify session storage
-
-	throw await redirectWithToast('/login', {
-		title: 'Auth Success (jk)',
-		description: `You have successfully authenticated with ${label} (not really though...).`,
-		type: 'success',
+	const verifySession = await verifySessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+	verifySession.set(onboardingEmailSessionKey, profile.email)
+	verifySession.set(prefilledProfileKey, {
+		...profile,
+		username: profile.username
+			?.replace(/[^a-zA-Z0-9]/g, '_')
+			.toLowerCase()
+			.slice(0, 20)
+			.padEnd(3, '_'),
+	})
+	verifySession.set(providerIdKey, profile.id)
+	return redirect(`/onboarding/${providerName}`, {
+		headers: {
+			'set-cookie': await verifySessionStorage.commitSession(verifySession),
+		},
 	})
 }
