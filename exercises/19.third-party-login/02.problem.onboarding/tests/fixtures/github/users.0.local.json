@@ -34,5 +34,41 @@
       }
     ],
     "primaryEmail": "kody@kcd.dev"
+  },
+  {
+    "code": "MOCK_GITHUB_CODE_HANNAH",
+    "accessToken": "MOCK_GITHUB_CODE_HANNAH_mock_access_token",
+    "profile": {
+      "login": "Blair13",
+      "id": "MOCK_GITHUB_CODE_HANNAH_profile_id",
+      "name": "Mrs. Vera Schaden",
+      "avatar_url": "https://github.com/ghost.png",
+      "emails": [
+        "Elisabeth86@gmail.com",
+        "Grace65@hotmail.com",
+        "Jaden10@gmail.com"
+      ]
+    },
+    "emails": [
+      {
+        "email": "Elisabeth86@gmail.com",
+        "verified": false,
+        "primary": false,
+        "visibility": "public"
+      },
+      {
+        "email": "Grace65@hotmail.com",
+        "verified": true,
+        "primary": false,
+        "visibility": null
+      },
+      {
+        "email": "Jaden10@gmail.com",
+        "verified": true,
+        "primary": true,
+        "visibility": null
+      }
+    ],
+    "primaryEmail": "Jaden10@gmail.com"
   }
 ]
