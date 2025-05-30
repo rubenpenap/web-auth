@@ -20,11 +20,11 @@ export const providerIcons: Record<ProviderName, React.ReactNode> = {
 } as const
 
 export function ProviderConnectionForm({
-	// 🐨 grab the redirectTo prop here
+	redirectTo,
 	type,
 	providerName,
 }: {
-	// 🐨 add an optional redirectTo prop here
+	redirectTo?: string | null
 	type: 'Connect' | 'Login' | 'Signup'
 	providerName: ProviderName
 }) {
@@ -37,7 +37,9 @@ export function ProviderConnectionForm({
 			action={formAction}
 			method="POST"
 		>
-			{/* 🐨 render a hidden input with name="redirectTo" and value={redirectTo} */}
+			{redirectTo ? (
+				<input type="hidden" name="redirectTo" value={redirectTo} />
+			) : null}
 			<StatusButton
 				type="submit"
 				className="w-full"
