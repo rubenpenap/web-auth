@@ -34,5 +34,113 @@
       }
     ],
     "primaryEmail": "kody@kcd.dev"
+  },
+  {
+    "code": "MOCK_GITHUB_CODE_KODY_2",
+    "accessToken": "MOCK_GITHUB_CODE_KODY_2_mock_access_token",
+    "profile": {
+      "login": "Lambert_Kilback-Kozey38",
+      "id": "MOCK_GITHUB_CODE_KODY_2_profile_id",
+      "name": "Rolando Pacocha",
+      "avatar_url": "https://github.com/ghost.png",
+      "emails": [
+        "Maeve27@yahoo.com",
+        "Jonatan.Zboncak@hotmail.com",
+        "Ellie_Gutmann34@hotmail.com"
+      ]
+    },
+    "emails": [
+      {
+        "email": "Maeve27@yahoo.com",
+        "verified": false,
+        "primary": false,
+        "visibility": "public"
+      },
+      {
+        "email": "Jonatan.Zboncak@hotmail.com",
+        "verified": true,
+        "primary": false,
+        "visibility": null
+      },
+      {
+        "email": "Ellie_Gutmann34@hotmail.com",
+        "verified": true,
+        "primary": true,
+        "visibility": null
+      }
+    ],
+    "primaryEmail": "Ellie_Gutmann34@hotmail.com"
+  },
+  {
+    "code": "MOCK_GITHUB_CODE_KODY_3",
+    "accessToken": "MOCK_GITHUB_CODE_KODY_3_mock_access_token",
+    "profile": {
+      "login": "Julio_Keeling",
+      "id": "MOCK_GITHUB_CODE_KODY_3_profile_id",
+      "name": "Mabel Tromp",
+      "avatar_url": "https://github.com/ghost.png",
+      "emails": [
+        "Alivia_Mitchell90@gmail.com",
+        "Destiny36@gmail.com",
+        "Graham.Homenick@gmail.com"
+      ]
+    },
+    "emails": [
+      {
+        "email": "Alivia_Mitchell90@gmail.com",
+        "verified": false,
+        "primary": false,
+        "visibility": "public"
+      },
+      {
+        "email": "Destiny36@gmail.com",
+        "verified": true,
+        "primary": false,
+        "visibility": null
+      },
+      {
+        "email": "Graham.Homenick@gmail.com",
+        "verified": true,
+        "primary": true,
+        "visibility": null
+      }
+    ],
+    "primaryEmail": "Graham.Homenick@gmail.com"
+  },
+  {
+    "code": "MOCK_GITHUB_CODE_KODY_4",
+    "accessToken": "MOCK_GITHUB_CODE_KODY_4_mock_access_token",
+    "profile": {
+      "login": "Amina_Schowalter0",
+      "id": "MOCK_GITHUB_CODE_KODY_4_profile_id",
+      "name": "Miss Nancy Doyle",
+      "avatar_url": "https://github.com/ghost.png",
+      "emails": [
+        "Kamren.Daugherty13@hotmail.com",
+        "Titus51@hotmail.com",
+        "Ellis_Kertzmann44@gmail.com"
+      ]
+    },
+    "emails": [
+      {
+        "email": "Kamren.Daugherty13@hotmail.com",
+        "verified": false,
+        "primary": false,
+        "visibility": "public"
+      },
+      {
+        "email": "Titus51@hotmail.com",
+        "verified": true,
+        "primary": false,
+        "visibility": null
+      },
+      {
+        "email": "Ellis_Kertzmann44@gmail.com",
+        "verified": true,
+        "primary": true,
+        "visibility": "public"
+      }
+    ],
+    "primaryEmail": "Ellis_Kertzmann44@gmail.com"
   }
 ]
