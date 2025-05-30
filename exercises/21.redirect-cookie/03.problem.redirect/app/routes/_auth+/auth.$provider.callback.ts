@@ -12,38 +12,45 @@ import {
 } from '#app/utils/toast.server.ts'
 import { verifySessionStorage } from '#app/utils/verification.server.ts'
 import { handleNewSession } from './login.tsx'
-// 💰 you'll need these:
-// import { combineHeaders, combineResponseInits } from '#app/utils/misc.tsx'
-// import {
-// 	destroyRedirectToHeader,
-// 	getRedirectCookieValue,
-// } from '#app/utils/redirect-cookie.server.ts'
+import { combineHeaders, combineResponseInits } from '#app/utils/misc.tsx'
+import {
+	destroyRedirectToHeader,
+	getRedirectCookieValue,
+} from '#app/utils/redirect-cookie.server.ts'
 import {
 	onboardingEmailSessionKey,
 	prefilledProfileKey,
 	providerIdKey,
 } from './onboarding_.$provider.tsx'
 
-// 🐨 create a destroyRedirectTo header object:
-// 💰 { 'set-cookie': destroyRedirectToHeader }
+const destroyRedirectTo = { 'set-cookie': destroyRedirectToHeader }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
 	const providerName = ProviderNameSchema.parse(params.provider)
 
-	// 🐨 get the redirectTo value from getRedirectCookieValue(request)
+	const redirectTo = getRedirectCookieValue(request)
 	const label = providerLabels[providerName]
 
 	const profile = await authenticator
 		.authenticate(providerName, request, { throwOnError: true })
 		.catch(async error => {
 			console.error(error)
-			// 🐨 add the destroyRedirectTo headers here
-			// 💯 add the redirectTo query param to the /login redirect
-			throw await redirectWithToast('/login', {
-				type: 'error',
-				title: 'Auth Failed',
-				description: `There was an error authenticating with ${label}.`,
-			})
+			const loginRedirect = [
+				'/login',
+				redirectTo ? new URLSearchParams({ redirectTo }) : null,
+			]
+				.filter(Boolean)
+				.join('?')
+				.toString()
+			throw await redirectWithToast(
+				loginRedirect,
+				{
+					type: 'error',
+					title: 'Auth Failed',
+					description: `There was an error authenticating with ${label}.`,
+				},
+				{ headers: destroyRedirectTo },
+			)
 		})
 
 	const existingConnection = await prisma.connection.findUnique({
@@ -56,14 +63,17 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 	const userId = await getUserId(request)
 
 	if (existingConnection && userId) {
-		// 🐨 add the destroyRedirectTo headers here
-		throw await redirectWithToast('/settings/profile/connections', {
-			title: 'Already Connected',
-			description:
-				existingConnection.userId === userId
-					? `Your "${profile.username}" ${label} account is already connected.`
-					: `The "${profile.username}" ${label} account is already connected to another account.`,
-		})
+		throw await redirectWithToast(
+			'/settings/profile/connections',
+			{
+				title: 'Already Connected',
+				description:
+					existingConnection.userId === userId
+						? `Your "${profile.username}" ${label} account is already connected.`
+						: `The "${profile.username}" ${label} account is already connected to another account.`,
+			},
+			{ headers: destroyRedirectTo },
+		)
 	}
 
 	// If we're already logged in, then link the account
@@ -71,18 +81,24 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 		await prisma.connection.create({
 			data: { providerName, providerId: profile.id, userId },
 		})
-		// 🐨 add the destroyRedirectTo headers here
-		throw await redirectWithToast('/settings/profile/connections', {
-			title: 'Connected',
-			type: 'success',
-			description: `Your "${profile.username}" ${label} account has been connected.`,
-		})
+		throw await redirectWithToast(
+			'/settings/profile/connections',
+			{
+				title: 'Connected',
+				type: 'success',
+				description: `Your "${profile.username}" ${label} account has been connected.`,
+			},
+			{ headers: destroyRedirectTo },
+		)
 	}
 
 	// Connection exists already? Make a new session
 	if (existingConnection) {
-		// 🐨 pass redirectTo here
-		return makeSession({ request, userId: existingConnection.userId })
+		return makeSession({
+			request,
+			userId: existingConnection.userId,
+			redirectTo,
+		})
 	}
 
 	// if the email matches a user in the db, then link the account and
@@ -99,8 +115,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 			{
 				request,
 				userId: user.id,
-				// 🐨 prefer redirectTo, but fallback to the connections page (💰 via nullish coalescing: ??)
-				redirectTo: '/settings/profile/connections',
+				redirectTo: redirectTo ?? '/settings/profile/connections',
 			},
 			{
 				headers: await createToastHeaders({
@@ -125,12 +140,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 			.padEnd(3, '_'),
 	})
 	verifySession.set(providerIdKey, profile.id)
-	// 🐨 add a redirectTo param if a redirectTo exists
-	return redirect(`/onboarding/${providerName}`, {
-		// 🐨 use combineHeaders to pass the destroyRedirectTo headers here
-		headers: {
-			'set-cookie': await verifySessionStorage.commitSession(verifySession),
-		},
+	const onboardingRedirect = [
+		`/onboarding/${providerName}`,
+		redirectTo ? new URLSearchParams({ redirectTo }) : null,
+	]
+		.filter(Boolean)
+		.join('?')
+		.toString()
+	return redirect(onboardingRedirect, {
+		headers: combineHeaders(
+			{
+				'set-cookie': await verifySessionStorage.commitSession(verifySession),
+			},
+			destroyRedirectTo,
+		),
 	})
 }
 
@@ -152,7 +175,6 @@ async function makeSession(
 	})
 	return handleNewSession(
 		{ request, session, redirectTo, remember: true },
-		// 🐨 use combineResponseInits to pass the destroyRedirectTo headers here
-		responseInit,
+		combineResponseInits({ headers: destroyRedirectTo }, responseInit),
 	)
 }
