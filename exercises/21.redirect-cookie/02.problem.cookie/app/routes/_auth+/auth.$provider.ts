@@ -2,9 +2,8 @@ import { redirect, type ActionFunctionArgs } from '@remix-run/node'
 import { authenticator } from '#app/utils/auth.server.ts'
 import { handleMockAction } from '#app/utils/connections.server.ts'
 import { ProviderNameSchema } from '#app/utils/connections.tsx'
-// 💰 you'll need these:
-// import { getReferrerRoute } from '#app/utils/misc.tsx'
-// import { getRedirectCookieHeader } from '#app/utils/redirect-cookie.server.ts'
+import { getReferrerRoute } from '#app/utils/misc.tsx'
+import { getRedirectCookieHeader } from '#app/utils/redirect-cookie.server.ts'
 
 export async function loader() {
 	return redirect('/login')
@@ -12,14 +11,22 @@ export async function loader() {
 
 export async function action({ request, params }: ActionFunctionArgs) {
 	const providerName = ProviderNameSchema.parse(params.provider)
-
-	// 🐨 wrap these two lines in a try/catch
-	await handleMockAction(providerName, request)
-	return await authenticator.authenticate(providerName, request)
-	// 🐨 in the error case, if the error is a Response, then do the following:
-	// 🐨 get the request.formData
-	// 🐨 get the redirectTo value, fallback to getReferrerRoute(request) unless redirectTo is null
-	// 🐨 get the redirectCookieHeader from getRedirectCookieHeader(redirectTo)
-	// 🐨 if there's a redirectCookieHeader, then append it as 'set-cookie' to the error.headers
-	// 🐨 in any case, re-throw the error
+	try {
+		await handleMockAction(providerName, request)
+		return await authenticator.authenticate(providerName, request)
+	} catch (error) {
+		if (error instanceof Response) {
+			const formData = await request.formData()
+			const rawRedirectTo = formData.get('redirectTo')
+			const redirectTo =
+				typeof rawRedirectTo === 'string'
+					? rawRedirectTo
+					: getReferrerRoute(request)
+			const redirectCookieHeader = getRedirectCookieHeader(redirectTo)
+			if (redirectCookieHeader) {
+				error.headers.append('set-cookie', redirectCookieHeader)
+			}
+		}
+		throw error
+	}
 }
