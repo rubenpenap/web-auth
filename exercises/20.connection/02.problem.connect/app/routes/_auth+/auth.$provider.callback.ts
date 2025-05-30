@@ -53,9 +53,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 		})
 	}
 
-	// 🐨 If there's a userId, then they're trying to connect, so create a connection
-	// for the currently logged in user and give them a toast message letting them
-	// know it worked.
+	if (userId) {
+		await prisma.connection.create({
+			data: { providerName, providerId: profile.id, userId },
+		})
+		throw await redirectWithToast('/settings/profile/connections', {
+			type: 'success',
+			title: 'Connected',
+			description: `Your "${profile.username}" ${label} account has been connected.`,
+		})
+	}
 
 	// Connection exists already? Make a new session
 	if (existingConnection) {
